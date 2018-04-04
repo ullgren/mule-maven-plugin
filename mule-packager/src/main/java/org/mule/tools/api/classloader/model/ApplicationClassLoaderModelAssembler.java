@@ -70,11 +70,23 @@ public class ApplicationClassLoaderModelAssembler {
     for (Map.Entry<BundleDependency, List<BundleDependency>> mulePluginEntry : mulePluginDependencies.entrySet()) {
       ClassLoaderModel mulePluginClassloaderModel =
           new ClassLoaderModel(CLASS_LOADER_MODEL_VERSION, toArtifactCoordinates(mulePluginEntry.getKey().getDescriptor()));
-      mulePluginClassloaderModel.setDependencies(toArtifacts(mulePluginEntry.getValue()));
+      List<BundleDependency> mulePluginDependenciesDependencies = resolveVersions(mulePluginEntry.getValue(), mulePlugins);
+      mulePluginClassloaderModel.setDependencies(toArtifacts(mulePluginDependenciesDependencies));
       applicationClassLoaderModel.addMulePluginClassloaderModel(mulePluginClassloaderModel);
     }
 
     return applicationClassLoaderModel;
+  }
+
+  private List<BundleDependency> resolveVersions(List<BundleDependency> mulePluginsToResolve,
+                                                 List<BundleDependency> mulePlugins) {
+    List<BundleDependency> resolvedPlugins = new ArrayList<>();
+    for (BundleDependency mulePluginToResolve : mulePluginsToResolve) {
+      Optional<BundleDependency> mulePlugin = mulePlugins.stream()
+          .filter(p -> p.getDescriptor().getArtifactId().equals(mulePluginToResolve.getDescriptor().getArtifactId())).findFirst();
+      resolvedPlugins.add(mulePlugin.orElse(mulePluginToResolve));
+    }
+    return resolvedPlugins;
   }
 
   private List<Artifact> toApplicationModelArtifacts(List<BundleDependency> appDependencies) {
@@ -107,8 +119,8 @@ public class ApplicationClassLoaderModelAssembler {
   /**
    * Resolve the application dependencies, excluding mule domains.
    *
-   * @param targetFolder target folder of application that is going to be packaged, which need to contain at this stage the pom
-   *        file in the folder that is going to be resolved by {@link PomFileSupplierFactory}
+   * @param targetFolder            target folder of application that is going to be packaged, which need to contain at this stage the pom
+   *                                file in the folder that is going to be resolved by {@link PomFileSupplierFactory}
    * @param projectBundleDescriptor bundleDescriptor of application to be packaged
    */
   private List<BundleDependency> resolveApplicationDependencies(File targetFolder, BundleDescriptor projectBundleDescriptor) {
