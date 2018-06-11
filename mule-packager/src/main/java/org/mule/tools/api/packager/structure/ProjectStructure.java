@@ -88,4 +88,8 @@ public class ProjectStructure {
   public Path getMuleArtifactJsonPath() {
     return projectBuildDirectory.resolve(META_INF.value()).resolve(MULE_ARTIFACT.value());
   }
+
+  public Path getProjectBuildDirectory() {
+    return projectBuildDirectory;
+  }
 }

@@ -11,24 +11,27 @@
 package org.mule.tools.api.packager.sources;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.mule.tools.api.packager.structure.FolderNames.CLASSES;
+import org.mule.tools.api.packager.Pom;
+import org.mule.tools.api.packager.structure.ProjectStructure;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.IOFileFilter;
 import org.apache.commons.io.filefilter.SuffixFileFilter;
 import org.apache.commons.io.filefilter.TrueFileFilter;
-
-import org.mule.tools.api.packager.Pom;
-import org.mule.tools.api.packager.structure.ProjectStructure;
 
 /**
  * Resolves the content of resources defined in mule-artifact.json based on the project base folder.
@@ -74,10 +77,19 @@ public class MuleArtifactContentResolver {
    * Returns the resolved list of exported resources paths.
    */
   public List<String> getExportedResources() throws IOException {
+    Set<String> resourcesUnderBuiltDirectory;
+    try (Stream<Path> paths = Files.walk(this.projectStructure.getProjectBuildDirectory().resolve(CLASSES.value()))) {
+      resourcesUnderBuiltDirectory = paths.filter(Files::isRegularFile)
+          .map(Path::toString)
+          .collect(Collectors.toSet());
+    }
     if (exportedResources == null) {
       exportedResources = new ArrayList<>();
       for (Path resourcePath : pom.getResourcesLocation()) {
-        exportedResources.addAll(getResources(resourcePath));
+        List<String> candidates = getResources(resourcePath);
+        exportedResources.addAll(candidates.stream()
+            .filter(resourcesUnderBuiltDirectory::contains)
+            .collect(Collectors.toSet()));
       }
     }
     return exportedResources;
