@@ -17,12 +17,15 @@ import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
 import static org.apache.commons.io.FileUtils.deleteDirectory;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 
 import org.mule.maven.client.api.MavenClientProvider;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.util.List;
 
 import org.apache.maven.it.VerificationException;
@@ -393,6 +396,19 @@ public class ProcessSourcesMojoTest extends MojoTest {
     processSourcesOnProject("multi-module-application");
     checkGeneratedRepository("app");
     checkGeneratedRepository("policy");
+  }
+
+  @Test
+  public void testPluginWithSystemScope() throws Exception {
+    final String appName = "plugin-with-system-scope";
+    final String processedPluginClassLoaderModel =
+            "/" + appName + "/target/META-INF/mule-artifact/org/mule/group/mule-plugin-b/1.0.0/classloader-model.json";
+    URL dependencyPath = this.getClass().getClassLoader()
+        .getResource("repository/org/mule/group/mule-plugin-b/1.0.0/mule-plugin-b-1.0.0-mule-plugin.jar");
+    processSourcesOnProject(appName, of("-DpluginBSystemPath=" + dependencyPath.getPath(), "-DlightweightPackage=true", "-DuseLocalRepository=true"));
+    List<String> generatedClassloaderModelFileContent = getFileContent(processedPluginClassLoaderModel);
+    //Check that plugin class loader model does not have any dependencies because it has scope test
+    assertThat(generatedClassloaderModelFileContent, hasItem(containsString("\"dependencies\": []")));
   }
 
   @Test
